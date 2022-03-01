@@ -74,6 +74,18 @@ func main() {
 		Default:  10,
 	})
 
+	startNum = parser.Int("", "start-num", &argparse.Options{
+		Required: false,
+		Help:     "Token Start Number",
+		Default:  1000,
+	})
+
+	endNum = parser.Int("", "end-num", &argparse.Options{
+		Required: false,
+		Help:     "Token End Number",
+		Default:  9999,
+	})
+
 	postURL = parser.String("u", "url", &argparse.Options{
 		Required: true,
 		Help:     "The URL of the POST request",
@@ -143,7 +155,6 @@ func main() {
 		for i := *startNum; i <= *endNum; i++ {
 			jobs <- i
 		}
-		close(jobs)
 	}()
 
 	for res := range results {
