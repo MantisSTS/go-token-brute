@@ -1,17 +1,15 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/akamensky/argparse"
+	"github.com/tomnomnom/rawhttp"
 )
 
 var (
@@ -31,42 +29,38 @@ var (
 func doRequest(code int) string {
 	time.Sleep(time.Duration(*sleep) * time.Millisecond)
 
-	requestBody := bytes.NewBuffer([]byte(*postData))
+	// Create new RawHTTP request using Tomnomnom's rawhttp library
+	req, err := rawhttp.FromURL(*httpVerb, *postURL)
 
-	client := &http.Client{}
-	request, err := http.NewRequest(*httpVerb, *postURL, requestBody)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
-	request.Header.Set("Content-Type", *requestContentType)
+	req.AutoSetHost()
+	req.AddHeader(fmt.Sprintf("Content-Type: %s", *requestContentType))
+	req.AddHeader(fmt.Sprintf("Cookie: %s", *cookies))
+	data := strings.Replace(*postData, "__TOKEN__", fmt.Sprintf("%d", code), -1)
+	req.Body = data
 	for _, header := range *headers {
 		parts := strings.Split(header, ":")
-		request.Header.Set(parts[0], strings.Join(parts[1:], ""))
+		req.AddHeader(fmt.Sprintf("%s: %s", parts[0], strings.Join(parts[1:], "")))
 	}
-	request.Header.Set("Cookie", *cookies)
+	req.AutoSetContentLength()
 
-	resp, err := client.Do(request)
+	resp, err := rawhttp.Do(req)
 
 	// Perform HTTP Post request
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Read the response body
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	// Read response body
+	body := resp.Body()
 	return string(body)
 }
 
 func doJob(wg *sync.WaitGroup, jobs chan int, results chan string) {
 	defer wg.Done()
 	for j := range jobs {
-
 		results <- doRequest(j)
 	}
 }
@@ -90,7 +84,7 @@ func main() {
 		Help:     "The cookies to use",
 	})
 
-	headers = parser.StringList("", "header", &argparse.Options{
+	headers = parser.StringList("e", "header", &argparse.Options{
 		Required: false,
 		Help:     "The headers to use",
 	})
@@ -119,8 +113,8 @@ func main() {
 	})
 
 	postData = parser.String("d", "data", &argparse.Options{
-		Required: false,
-		Help:     "The HTTP request data to use",
+		Required: true,
+		Help:     "The HTTP request data to use; Note: Use __TOKEN__ to specify the token",
 		Default:  "{}",
 	})
 
