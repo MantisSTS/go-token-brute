@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -25,18 +24,17 @@ var (
 	sleep                *int
 	negativeSearchString *string
 	requestContentType   *string
+	httpVerb             *string
+	postData             *string
 )
 
 func doRequest(code int) string {
 	time.Sleep(time.Duration(*sleep) * time.Millisecond)
-	postBody, _ := json.Marshal(map[string]int{
-		"token": code,
-	})
 
-	responseBody := bytes.NewBuffer(postBody)
+	requestBody := bytes.NewBuffer([]byte(*postData))
 
 	client := &http.Client{}
-	request, err := http.NewRequest("POST", *postURL, responseBody)
+	request, err := http.NewRequest(*httpVerb, *postURL, requestBody)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -112,6 +110,18 @@ func main() {
 	negativeSearchString = parser.String("n", "negative-search-string", &argparse.Options{
 		Required: true,
 		Help:     "The string to search for in the response body on a failed request (e.g. \"The provided token is invalid\")",
+	})
+
+	httpVerb = parser.String("v", "http-verb", &argparse.Options{
+		Required: false,
+		Help:     "The HTTP Verb to use",
+		Default:  "POST",
+	})
+
+	postData = parser.String("d", "data", &argparse.Options{
+		Required: false,
+		Help:     "The HTTP request data to use",
+		Default:  "{}",
 	})
 
 	err := parser.Parse(os.Args)
