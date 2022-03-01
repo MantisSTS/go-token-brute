@@ -158,6 +158,7 @@ func main() {
 	}()
 
 	for res := range results {
+		fmt.Println("Trying code: " + res)
 		if strings.Contains(res, *negativeSearchString) {
 			fmt.Println("[+] Code Found:", res)
 			close(results)
